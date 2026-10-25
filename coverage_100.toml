@@ -1,0 +1,57 @@
+# 行カバレッジ 100% の登録簿 (ippoan/alc-trouble-worker の同名のファイルの形。Refs ippoan/rust-alc-api#680)。
+#
+#   bash scripts/fetch-migrations.sh
+#   CARINS_TEST_ADMIN_DATABASE_URL=... cargo llvm-cov --locked -p carins --text > cov-carins.txt
+#   bash scripts/check_coverage_100.sh --use-cache cov-carins.txt
+#
+# 計測するのは `cargo test -p carins` の全部 = 各 module の単体テスト (純粋関数) と tests/carins_db.rs・maintenance_db.rs
+# (口から実 DB まで。接続先が無ければ失敗する)。
+# worker 本体 (直下の src/、wasm 専用) は native で計測できないので対象外。
+
+# tenant の layer・DB と R2 の失敗の語・409 の判定・router の組み立て
+[[files]]
+path = "crates/carins/src/lib.rs"
+
+# 取り出しの Content-Disposition (ASCII だけ)
+[[files]]
+path = "crates/carins/src/store.rs"
+
+# 番号の形の検査と車検期限の照合 (和暦の 4 列を含む)
+[[files]]
+path = "crates/carins/src/lookup.rs"
+
+# 車検証の一覧・履歴・分類の候補・照合の口
+[[files]]
+path = "crates/carins/src/car_inspections.rs"
+
+# 車検証のファイル (登録・一覧・取り出し・確かめ。R2 はモック)
+[[files]]
+path = "crates/carins/src/files.rs"
+
+# 登録した JSON / PDF の読み取りと紐づけ (待ちの PDF を含む)
+[[files]]
+path = "crates/carins/src/parse.rs"
+
+# NFC タグ
+[[files]]
+path = "crates/carins/src/nfc_tags.rs"
+
+# 車両整備の router
+[[files]]
+path = "crates/carins/src/maintenance/mod.rs"
+
+# 車両 (CRUD・車検証との紐づけ・取り込み。取り込みのぶつかりは tests/support の trigger で作る)
+[[files]]
+path = "crates/carins/src/maintenance/vehicles.rs"
+
+# 整備カテゴリ (auto-seed を含む)
+[[files]]
+path = "crates/carins/src/maintenance/categories.rs"
+
+# 整備記録 (絞り込み・会社の確かめ)
+[[files]]
+path = "crates/carins/src/maintenance/records.rs"
+
+# 整備記録の添付 (R2 はモック)
+[[files]]
+path = "crates/carins/src/maintenance/files.rs"

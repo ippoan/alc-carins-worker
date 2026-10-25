@@ -1,0 +1,38 @@
+[package]
+name = "carins"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# 口 (`router`)・入力の検証・SQL を持ち、native でも wasm32-unknown-unknown でもビルドできる
+# (接続は持たない。張るのは直下の worker と tests/)。
+[dependencies]
+# 出どころは直下の Cargo.toml の [workspace.dependencies] の 1 か所 (ここに git / path を書かない)
+alc-core-wasm = { workspace = true }
+alc-worker-db = { workspace = true }
+# multipart は整備記録の添付の口 (rust と同じ axum の Multipart。multer は pure Rust で wasm32 でもビルドできる)
+axum = { version = "0.8", default-features = false, features = ["json", "multipart", "query"] }
+# 車検証の登録の口の本文 (base64。rust と同じ STANDARD)
+base64 = "0.22"
+# 行の created_at / updated_at・整備の日付 (rust-alc-api と同じ chrono の JSON の形)
+chrono = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# 車検証の PDF の文字の取り出し (rust と同じ版。pure Rust で wasm32 でも native と同じ文字列を返す)
+pdf-extract = "=0.7.12"
+# 車検証の PDF の判定・管理番号・交付日 (rust と同じ正規表現)
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 型付きの文の型 (`Type`) と列の型 (uuid・timestamptz・date・jsonb)。接続は張らない
+# (wasm 用の feature `js` は直下の worker と alc-worker-db が付ける)
+tokio-postgres = { version = "0.7", default-features = false, features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
+uuid = { version = "1", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync"] }
+# tests/ の実 DB の接続 (runtime 付き)。dev-dependency なので wasm のビルドには入らない
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
+# 車検証の PDF の組み立て (tests/carins_db.rs。pdf-extract が使うのと同じ版)
+lopdf = "0.34"
+tower = { version = "0.5", features = ["util"] }
+uuid = { version = "1", features = ["v4"] }

@@ -1,0 +1,94 @@
+# 車検証 (carins) と車両整備 (maintenance) の Worker (Refs ippoan/rust-alc-api#680)。rust-alc-api の
+# crates/alc-carins・crates/alc-maintenance を移す先。型は ippoan/alc-trouble-worker と同じ。
+#
+# ★ この Worker は呼び手を認証しない (auth-worker が付けた X-Tenant-ID を信頼する)。
+#   本番・staging とも、到達経路は auth-worker からの Service Binding だけにする:
+#   - workers_dev = false / preview_urls = false (*.workers.dev と preview URL を開けない)
+#   - route / routes / custom_domain を書かない
+#   どの env も workers_dev / preview_urls を false にする (ohishi-exp/rust-leave-worker#3 の決定と同じ)。
+#   scripts/check-exposure.sh が CI で毎回これを検査する。
+# ★ 表の順を変えない・前の方に表を足さない (scripts/check-exposure-test.sh の陰性対照は、特定の表の
+#   直前に行を挿して崩す作り。CLAUDE.md)。新しい表は placement の表より後に置く。
+name = "alc-carins"
+main = "build/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+preview_urls = false
+
+[build]
+command = "cargo install -q worker-build@0.8.7 && worker-build --release"
+
+# 応答ヘッダー x-worker-version / x-worker-tag の元 (src/lib.rs)。binding は env に継承されないので
+# トップレベルと env.staging の両方に要る。tag / message は deploy の --tag / --message (deploy.yml)
+[version_metadata]
+binding = "CF_VERSION_METADATA"
+
+# 本番の DB は aws:ap-northeast-1。Worker をその近くで動かす
+[placement]
+region = "aws:ap-northeast-1"
+
+# 本番でもログを残す (env に継承されないので、staging は下で別に書く)。口が出すログは段の名前・kind だけ
+[observability]
+enabled = true
+
+# 本番の DB: Cloudflare Hyperdrive の binding CARINS_HYPERDRIVE (src/db.rs)。設定は実行用ロールのもの 1 つを
+# 複数の worker で共有する (worker ごとに作らない。id は ippoan/alc-trouble-worker と同じ)。
+# 接続先・資格情報・TLS は設定の側に在り、ここに書くのは設定の ID だけ。
+# env.staging / env.local には置かない (binding は env に継承されない。scripts/check-exposure.sh が検査する)。
+[[hyperdrive]]
+binding = "CARINS_HYPERDRIVE"
+id = "6bdf446634034f989d4e094d5510b162"
+
+# 本番の R2 (車検証のファイルの置き場。rust-alc-api の CARINS_R2_BUCKET と同じ bucket で、既存のファイルをそのまま読む)。
+# binding は env に継承されないので、staging は下で別の bucket を指す
+[[r2_buckets]]
+binding = "CARINS_R2"
+bucket_name = "carins-files"
+
+# 本番の R2 (整備記録の添付の置き場。rust-alc-api の既定の共有 storage R2_BUCKET と同じ bucket に
+# prefix `{tenant_id}/maintenance/` で相乗りしている。既存の添付をそのまま読む)
+[[r2_buckets]]
+binding = "MAINTENANCE_R2"
+bucket_name = "alc-face-photos"
+
+# staging: DB は ippoan/alc-vein-worker の staging と同じもの (Workers VPC の binding CARINS_DB_VPC から
+# 既存の Tunnel 経由で PgBouncer へ繋ぐ。src/db.rs)。Hyperdrive は通さない。
+[env.staging]
+name = "alc-carins-staging"
+workers_dev = false
+preview_urls = false
+
+[env.staging.observability]
+enabled = true
+
+[env.staging.version_metadata]
+binding = "CF_VERSION_METADATA"
+
+# Worker の実行場所を staging の DB の近くに寄せる (ippoan/alc-vein-worker の staging と同じ region)
+[env.staging.placement]
+region = "aws:ap-northeast-3"
+
+# staging の DB への口 (vein / lineworks / trouble の staging と同じ VPC Service を共有)。本番 (トップレベル) には置かない
+# (scripts/check-exposure.sh が検査)
+[[env.staging.vpc_services]]
+binding = "CARINS_DB_VPC"
+# service_id は VPC Service の参照 (宛先の Tunnel・host:port は Service 側に閉じる)
+service_id = "01a0efa3-57ee-7631-912e-7f261d828127"
+remote = true
+
+# staging の R2 は staging 用の bucket (rust-alc-api の staging と同じ。本番の bucket を指すと本番のファイルを読み書きする。
+# scripts/check-exposure.sh が検査)
+[[env.staging.r2_buckets]]
+binding = "CARINS_R2"
+bucket_name = "carins-files-staging"
+
+[[env.staging.r2_buckets]]
+binding = "MAINTENANCE_R2"
+bucket_name = "alc-face-photos-staging"
+
+# ローカル (`wrangler dev --env local`) 専用。deploy しない。
+# binding を持たない (binding は env に継承されない) ので、src/db.rs は文字列 DATABASE_URL の段で繋ぐ
+[env.local]
+name = "alc-carins-local"
+workers_dev = false
+preview_urls = false
